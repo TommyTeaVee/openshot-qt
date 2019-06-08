@@ -27,7 +27,7 @@
 
 import os
 
-from PyQt5.QtCore import QMimeData, Qt
+from PyQt5.QtCore import QMimeData, Qt, QSize
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import QMessageBox
 import openshot  # Python module for libopenshot (required video editing module installed separately)
@@ -105,8 +105,6 @@ class EffectsModel():
             elif effect_info["has_video"] and not effect_info["has_audio"]:
                 category = "Video"
 
-            log.info("category: %s" % category)
-
             # Filter out effect (if needed)
             if win.effectsFilter.text() != "":
                 if not win.effectsFilter.text().lower() in self.app._tr(title).lower() and not win.effectsFilter.text().lower() in self.app._tr(description).lower():
@@ -147,7 +145,10 @@ class EffectsModel():
 
             # Append thumbnail
             col = QStandardItem()
-            col.setIcon(QIcon(thumb_path))
+
+            icon_pixmap = QPixmap(thumb_path)
+            scaled_pixmap = icon_pixmap.scaled(QSize(98, 64), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+            col.setIcon(QIcon(scaled_pixmap))
             col.setText(self.app._tr(title))
             col.setToolTip(self.app._tr(title))
             col.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsUserCheckable | Qt.ItemIsDragEnabled)

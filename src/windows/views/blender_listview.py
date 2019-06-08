@@ -30,6 +30,7 @@ import os
 import uuid
 import shutil
 import subprocess
+import sys
 import re
 import xml.dom.minidom as xml
 import functools
@@ -219,6 +220,9 @@ class BlenderListView(QListView):
         log.info('New value of param: %s' % value)
 
     def color_button_clicked(self, widget, param, index):
+        # Get translation object
+        _ = get_app()._tr
+
         # Show color dialog
         log.info('Animation param being changed: %s' % param["name"])
         color_value = self.params[param["name"]]
@@ -227,7 +231,8 @@ class BlenderListView(QListView):
         if len(color_value) == 3:
             #currentColor = QColor(color_value[0], color_value[1], color_value[2])
             currentColor.setRgbF(color_value[0], color_value[1], color_value[2])
-        newColor = QColorDialog.getColor(currentColor)
+        newColor = QColorDialog.getColor(currentColor, self, _("Select a Color"),
+                                         QColorDialog.DontUseNativeDialog)
         if newColor.isValid():
             widget.setStyleSheet("background-color: {}".format(newColor.name()))
             self.params[param["name"]] = [newColor.redF(), newColor.greenF(), newColor.blueF()]
@@ -610,10 +615,9 @@ class BlenderListView(QListView):
         self.setGridSize(QSize(102, 92))
         self.setViewMode(QListView.IconMode)
         self.setResizeMode(QListView.Adjust)
-        self.setUniformItemSizes(False)
+        self.setUniformItemSizes(True)
         self.setWordWrap(True)
         self.setTextElideMode(Qt.ElideRight)
-        self.setStyleSheet('QTreeView::item { padding-top: 2px; }')
 
         # Hook up button
         self.win.btnRefresh.clicked.connect(functools.partial(self.btnRefresh_clicked))
@@ -663,12 +667,10 @@ class BlenderListView(QListView):
 
     # Signal when to update progress bar (1005)
     def onUpdateProgress(self, current_frame, current_part, max_parts):
-        # log.info ('onUpdateProgress')
         self.update_progress_bar(current_frame, current_part, max_parts)
 
     # Signal when to update preview image (1006)
     def onUpdateImage(self, image_path):
-        # log.info ('onUpdateImage: %s' % image_path)
         self.update_image(image_path)
 
     # Signal error from blender (with custom message) (1007)
@@ -717,11 +719,16 @@ class Worker(QObject):
         self.is_running = True
         _ = get_app()._tr
 
+        startupinfo = None
+        if sys.platform == 'win32':
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
         try:
             # Shell the blender command to create the image sequence
             command_get_version = [self.blender_exec_path, '-v']
             command_render = [self.blender_exec_path, '-b', self.blend_file_path, '-P', self.target_script]
-            self.process = subprocess.Popen(command_get_version, stdout=subprocess.PIPE)
+            self.process = subprocess.Popen(command_get_version, stdout=subprocess.PIPE, stderr=subprocess.PIPE, startupinfo=startupinfo)
 
             # Check the version of Blender
             self.version = self.blender_version.findall(str(self.process.stdout.readline()))
@@ -741,7 +748,7 @@ class Worker(QObject):
                                                              command_render[3], command_render[4]))
 
             # Run real command to render Blender project
-            self.process = subprocess.Popen(command_render, stdout=subprocess.PIPE)
+            self.process = subprocess.Popen(command_render, stdout=subprocess.PIPE, stderr=subprocess.PIPE, startupinfo=startupinfo)
 
         except:
             # Error running command.  Most likely the blender executable path in the settings

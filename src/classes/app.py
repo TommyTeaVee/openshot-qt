@@ -37,11 +37,6 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtCore import QT_VERSION_STR
 from PyQt5.Qt import PYQT_VERSION_STR
 
-from classes.logger import log
-from classes import info, settings, project_data, updates, language, ui_util, logger_libopenshot
-import openshot
-
-
 try:
     # Enable High-DPI resolutions
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
@@ -56,13 +51,32 @@ def get_app():
 
 class OpenShotApp(QApplication):
     """ This class is the primary QApplication for OpenShot.
-            mode=None (normal), mode=unittest (testing) """
+            mode=None (normal), mode=unittest (testing)"""
 
     def __init__(self, *args, mode=None):
         QApplication.__init__(self, *args)
 
+        try:
+            # Import modules
+            from classes import info
+            from classes.logger import log, reroute_output
+            from classes import settings, project_data, updates, language, ui_util, logger_libopenshot
+            import openshot
+
+            # Re-route stdout and stderr to logger
+            reroute_output()
+        except Exception as ex:
+            QMessageBox.warning(None, "Import Error",
+                                "%(error)s. Please delete <b>%(path)s</b> and launch OpenShot again." % {"error": str(ex), "path": info.USER_PATH})
+            # Stop launching and exit
+            sys.exit()
+
         # Log some basic system info
         try:
+            log.info("------------------------------------------------")
+            log.info("   OpenShot (version %s)" % info.SETUP['version'])
+            log.info("------------------------------------------------")
+
             v = openshot.GetVersion()
             log.info("openshot-qt version: %s" % info.VERSION)
             log.info("libopenshot version: %s" % v.ToString())
@@ -111,6 +125,26 @@ class OpenShotApp(QApplication):
 
         # Load ui theme if not set by OS
         ui_util.load_theme()
+
+        # Test for permission issues (and display message if needed)
+        try:
+            # Create test paths
+            TEST_PATH_DIR = os.path.join(info.USER_PATH, 'PERMISSION')
+            TEST_PATH_FILE = os.path.join(TEST_PATH_DIR, 'test.osp')
+            os.makedirs(TEST_PATH_DIR, exist_ok=True)
+            with open(TEST_PATH_FILE, 'w') as f:
+                f.write('{}')
+                f.flush()
+            # Delete test paths
+            os.unlink(TEST_PATH_FILE)
+            os.rmdir(TEST_PATH_DIR)
+        except Exception as ex:
+            # Permission error (most likely)
+            log.error('Failed to create PERMISSION/test.osp file (likely permissions error): %s' % TEST_PATH_FILE)
+            QMessageBox.warning(None, _("Permission Error"),
+                                      _("%(error)s. Please delete <b>%(path)s</b> and launch OpenShot again." % {"error": str(ex), "path": info.USER_PATH}))
+            # Stop launching and exit
+            sys.exit()
 
         # Start libopenshot logging thread
         self.logger_libopenshot = logger_libopenshot.LoggerLibOpenShot()
@@ -168,7 +202,7 @@ class OpenShotApp(QApplication):
             path = args[0][1]
             if ".osp" in path:
                 # Auto load project passed as argument
-                self.window.open_project(path)
+                self.window.OpenProjectSignal.emit(path)
             else:
                 # Auto import media file
                 self.window.filesTreeView.add_file(path)

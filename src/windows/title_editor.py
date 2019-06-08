@@ -32,6 +32,7 @@ import re
 import shutil
 import functools
 import subprocess
+import tempfile
 from xml.dom import minidom
 
 from PyQt5.QtCore import *
@@ -108,6 +109,9 @@ class TitleEditor(QDialog):
         self.titlesTreeView = TitlesListView(self)
         self.verticalLayout.addWidget(self.titlesTreeView)
 
+        # Disable Save button on window load
+        self.buttonBox.button(self.buttonBox.Save).setEnabled(False)
+
         # If editing existing title svg file
         if self.edit_file_path:
             # Hide list of templates
@@ -146,9 +150,26 @@ class TitleEditor(QDialog):
         self.display_svg()
 
     def display_svg(self):
+        # Create a temp file for this thumbnail image
+        new_file, tmp_filename = tempfile.mkstemp()
+        tmp_filename = "%s.png" % tmp_filename
+
+        # Create a clip object and get the reader
+        clip = openshot.Clip(self.filename)
+        reader = clip.Reader()
+
+        # Open reader
+        reader.Open()
+
+        # Save thumbnail image and close readers
+        reader.GetFrame(1).Thumbnail(tmp_filename, self.graphicsView.width(), self.graphicsView.height(), "", "", "#000", False, "png", 100, 0.0)
+        reader.Close()
+        clip.Close()
+
+        # Display temp image
         scene = QGraphicsScene(self)
         view = self.graphicsView
-        svg = QtGui.QPixmap(self.filename)
+        svg = QtGui.QPixmap(tmp_filename)
         svg_scaled = svg.scaled(self.graphicsView.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
         scene.addPixmap(svg_scaled)
         view.setScene(scene)
@@ -299,6 +320,9 @@ class TitleEditor(QDialog):
         else:
             self.btnFont.setEnabled(False)
             self.btnFontColor.setEnabled(False)
+
+        # Enable Save button when a template is selected
+        self.buttonBox.button(self.buttonBox.Save).setEnabled(True)
 
     def writeToFile(self, xmldoc):
         '''writes a new svg file containing the user edited data'''

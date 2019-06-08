@@ -27,6 +27,7 @@
 
 import os
 from collections import OrderedDict
+from operator import itemgetter
 
 from PyQt5.QtCore import QMimeData, Qt, QLocale, QTimer
 from PyQt5.QtGui import *
@@ -494,38 +495,44 @@ class PropertiesModel(updates.UpdateInterface):
             if not clip_updated:
                 # If no keyframe was found, set a basic property
                 if property_type == "int":
-                    # Integer
                     clip_updated = True
-                    c.data[property_key] = int(new_value)
+                    try:
+                        c.data[property_key] = int(new_value)
+                    except Exception as ex:
+                        log.warn('Invalid Integer value passed to property: %s' % ex)
 
                 elif property_type == "float":
-                    # Float
                     clip_updated = True
-                    c.data[property_key] = new_value
+                    try:
+                        c.data[property_key] = float(new_value)
+                    except Exception as ex:
+                        log.warn('Invalid Float value passed to property: %s' % ex)
 
                 elif property_type == "bool":
-                    # Boolean
                     clip_updated = True
-                    c.data[property_key] = bool(new_value)
+                    try:
+                        c.data[property_key] = bool(new_value)
+                    except Exception as ex:
+                        log.warn('Invalid Boolean value passed to property: %s' % ex)
 
                 elif property_type == "string":
-                    # String
                     clip_updated = True
-                    c.data[property_key] = str(new_value)
+                    try:
+                        c.data[property_key] = str(new_value)
+                    except Exception as ex:
+                        log.warn('Invalid String value passed to property: %s' % ex)
 
                 elif property_type == "reader":
-                    # Reader
-                    clip_updated = True
-
                     # Transition
+                    clip_updated = True
                     try:
                         clip_object = openshot.Clip(value)
                         clip_object.Open()
                         c.data[property_key] = json.loads(clip_object.Reader().Json())
                         clip_object.Close()
                         clip_object = None
-                    except:
-                        log.info('Failed to load %s into Clip object for reader property' % value)
+                    except Exception as ex:
+                        log.warn('Invalid Reader value passed to property: %s (%s)' % (value, ex))
 
             # Reduce # of clip properties we are saving (performance boost)
             c.data = {property_key: c.data.get(property_key)}
@@ -622,7 +629,7 @@ class PropertiesModel(updates.UpdateInterface):
                         col.setBackground(QColor("green"))  # Highlight keyframe background
                     elif points > 1:
                         col.setBackground(QColor(42, 130, 218))  # Highlight interpolated value background
-                    if readonly:
+                    if readonly or type == "color" or choices or label == "Track":
                         col.setFlags(Qt.ItemIsEnabled)
                     else:
                         col.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsUserCheckable)
@@ -649,6 +656,18 @@ class PropertiesModel(updates.UpdateInterface):
                         reader_path = reader_json.get("path", "/")
                         (dirName, fileName) = os.path.split(reader_path)
                         col.setText(fileName)
+                    elif type == "int" and label == "Track":
+                        # Find track display name
+                        all_tracks = get_app().project.get(["layers"])
+                        display_count = len(all_tracks)
+                        display_label = None
+                        for track in reversed(sorted(all_tracks, key=itemgetter('number'))):
+                            if track.get("number") == value:
+                                display_label = track.get("label")
+                                break
+                            display_count -= 1
+                        track_name = display_label or _("Track %s") % display_count
+                        col.setText(track_name)
 
                     elif type == "int":
                         col.setText("%d" % value)
@@ -674,7 +693,7 @@ class PropertiesModel(updates.UpdateInterface):
                         blue = property[1]["blue"]["value"]
                         col.setBackground(QColor(red, green, blue))
 
-                    if readonly or type == "color" or choices:
+                    if readonly or type == "color" or choices or label == "Track":
                         col.setFlags(Qt.ItemIsEnabled)
                     else:
                         col.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsUserCheckable | Qt.ItemIsEditable)
@@ -716,6 +735,18 @@ class PropertiesModel(updates.UpdateInterface):
                     elif type == "color":
                         # Don't output a value for colors
                         col.setText("")
+                    elif type == "int" and label == "Track":
+                        # Find track display name
+                        all_tracks = get_app().project.get(["layers"])
+                        display_count = len(all_tracks)
+                        display_label = None
+                        for track in reversed(sorted(all_tracks, key=itemgetter('number'))):
+                            if track.get("number") == value:
+                                display_label = track.get("label")
+                                break
+                            display_count -= 1
+                        track_name = display_label or _("Track %s") % display_count
+                        col.setText(track_name)
                     elif type == "int":
                         col.setText("%d" % value)
                     elif type == "reader":
