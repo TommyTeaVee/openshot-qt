@@ -30,22 +30,22 @@ Overview
 .. image:: images/title-editor.jpg
 
 .. table::
-     :widths: 5 26
+   :widths: 5 26
 
-     ==  ==================  ============
-     #   Name                Description
-     ==  ==================  ============
-     1   Choose a Template   Choose from any available vector title template
-     2   Preview Title       Preview your title as you make changes
-     3   Title Properties    Change the text, colors, or edit in an advanced SVG image editor (such as Inkscape)
-     4   Save                Save and add the title to your project
-     ==  ==================  ============
+   ==  ==================  ============
+   #   Name                Description
+   ==  ==================  ============
+   1   Choose a Template   Choose from any available vector title template
+   2   Preview Title       Preview your title as you make changes
+   3   Title Properties    Change the text, colors, or edit in an advanced SVG image editor (such as Inkscape)
+   4   Save                Save and add the title to your project
+   ==  ==================  ============
 
 Custom Titles
 -------------
-OpenShot can use any vector SVG image file as a title template. Just add an SVG image file to your */.openshot_qt/titles/*
-folder, and it will appear in OpenShot's title editor after you restart OpenShot. You can also right click on any SVG
-files in your **Project Files** panel, and choose **Edit Title** or **Duplicate Title**.
+OpenShot can use any vector SVG image file as a title template. Just add an SVG image file to your 
+*.openshot_qt/title_templates/* folder, and it will appear the next time you open the Title Editor interface. You can
+also right click on any SVG files in your **Project Files** panel, and choose **Edit Title** or **Duplicate Title**.
 
 3D Animated Titles
 ------------------
@@ -65,4 +65,3 @@ in the main menu of OpenShot) to launch the Animated Title editor. You can also 
 
 This feature requires the latest version of Blender (https://www.blender.org/download/) be installed, and the OpenShot
 **Preferences** updated with the correct path to the Blender executable (for example: */home/USER/blender-2.78/blender*).
-

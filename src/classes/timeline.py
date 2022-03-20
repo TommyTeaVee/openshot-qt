@@ -1,26 +1,26 @@
-""" 
+"""
  @file
  @brief This file contains a timeline object, which listens for updates and syncs a libopenshot timeline object
  @author Jonathan Thomas <jonathan@openshot.org>
- 
+
  @section LICENSE
- 
+
  Copyright (c) 2008-2018 OpenShot Studios, LLC
  (http://www.openshotstudios.com). This file is part of
  OpenShot Video Editor (http://www.openshot.org), an open-source project
  dedicated to delivering high quality video editing and animation solutions
  to the world.
- 
+
  OpenShot Video Editor is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
- 
+
  OpenShot Video Editor is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU General Public License
  along with OpenShot Library.  If not, see <http://www.gnu.org/licenses/>.
  """
@@ -31,7 +31,6 @@ import openshot  # Python module for libopenshot (required video editing module 
 from classes.updates import UpdateInterface
 from classes.logger import log
 from classes.app import get_app
-from classes import settings
 
 
 class TimelineSync(UpdateInterface):
@@ -41,15 +40,14 @@ class TimelineSync(UpdateInterface):
         self.app = get_app()
         self.window = window
         project = self.app.project
-        s = settings.get_settings()
 
         # Get some settings from the project
-        fps = project.get(["fps"])
-        width = project.get(["width"])
-        height = project.get(["height"])
-        sample_rate = project.get(["sample_rate"])
-        channels = project.get(["channels"])
-        channel_layout = project.get(["channel_layout"])
+        fps = project.get("fps")
+        width = project.get("width")
+        height = project.get("height")
+        sample_rate = project.get("sample_rate")
+        channels = project.get("channels")
+        channel_layout = project.get("channel_layout")
 
         # Create an instance of a libopenshot Timeline object
         self.timeline = openshot.Timeline(width, height, openshot.Fraction(fps["num"], fps["den"]), sample_rate, channels,
@@ -89,6 +87,9 @@ class TimelineSync(UpdateInterface):
                 # The timeline's profile changed, so update all clips
                 self.timeline.ApplyMapperToClips()
 
+                # Always seek back to frame 1
+                self.window.SeekSignal.emit(1)
+
                 # Refresh current frame (since the entire timeline was updated)
                 self.window.refreshFrameSignal.emit()
 
@@ -110,8 +111,9 @@ class TimelineSync(UpdateInterface):
         # Clear timeline preview cache (since our video size has changed)
         self.timeline.ClearAllCache()
 
-        # Set new max video size (Based on preview widget size)
-        self.timeline.SetMaxSize(new_size.width(), new_size.height())
+        # Set new max video size (Based on preview widget size and display scaling)
+        scale = self.window.devicePixelRatioF()
+        self.timeline.SetMaxSize(round(new_size.width() * scale), round(new_size.height() * scale))
 
         # Refresh current frame (since the entire timeline was updated)
         self.window.refreshFrameSignal.emit()

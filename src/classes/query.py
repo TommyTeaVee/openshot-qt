@@ -1,26 +1,26 @@
-""" 
+"""
  @file
  @brief This file can easily query Clips, Files, and other project data
  @author Jonathan Thomas <jonathan@openshot.org>
- 
+
  @section LICENSE
- 
+
  Copyright (c) 2008-2018 OpenShot Studios, LLC
  (http://www.openshotstudios.com). This file is part of
  OpenShot Video Editor (http://www.openshot.org), an open-source project
  dedicated to delivering high quality video editing and animation solutions
  to the world.
- 
+
  OpenShot Video Editor is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
- 
+
  OpenShot Video Editor is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU General Public License
  along with OpenShot Library.  If not, see <http://www.gnu.org/licenses/>.
  """
@@ -30,12 +30,6 @@ import copy
 
 from classes import info
 from classes.app import get_app
-
-
-
-# Get project data reference
-app = get_app()
-project = app.project
 
 
 class QueryObject:
@@ -57,7 +51,7 @@ class QueryObject:
         if not self.id and self.type == "insert":
 
             # Insert record, and Generate id
-            self.id = project.generate_id()
+            self.id = get_app().project.generate_id()
 
             # save id in data (if attribute found)
             self.data["id"] = copy.deepcopy(self.id)
@@ -68,7 +62,7 @@ class QueryObject:
                 self.key.append({"id": self.id})
 
             # Insert into project data
-            app.updates.insert(copy.deepcopy(OBJECT_TYPE.object_key), copy.deepcopy(self.data))
+            get_app().updates.insert(copy.deepcopy(OBJECT_TYPE.object_key), copy.deepcopy(self.data))
 
             # Mark record as 'update' now... so another call to this method won't insert it again
             self.type = "update"
@@ -76,7 +70,7 @@ class QueryObject:
         elif self.id and self.type == "update":
 
             # Update existing project data
-            app.updates.update(self.key, self.data)
+            get_app().updates.update(self.key, self.data)
 
     def delete(self, OBJECT_TYPE):
         """ Delete the object from the project data store """
@@ -84,7 +78,7 @@ class QueryObject:
         # Delete if object found and not pending insert
         if self.id and self.type == "update":
             # Delete from project data store
-            app.updates.delete(self.key)
+            get_app().updates.delete(self.key)
             self.type = "delete"
 
     def title(self):
@@ -96,34 +90,44 @@ class QueryObject:
         """ Take any arguments given as filters, and find a list of matching objects """
 
         # Get a list of all objects of this type
-        parent = project.get(OBJECT_TYPE.object_key)
+        parent = get_app().project.get(OBJECT_TYPE.object_key)
+
+        if not parent:
+            return []
+
         matching_objects = []
 
         # Loop through all children objects
-        if parent:
-            for child in parent:
+        for child in parent:
 
-                # Loop through all kwargs (and look for matches)
-                match = True
-                for key, value in kwargs.items():
-                    # Equals
-                    if key in child and not child[key] == value:
-                        match = False
-                        break
-                    # Intersection Position
-                    elif key == "intersect":
-                        if child.get("position", 0) > value or \
-                                    child.get("position", 0) + (child.get("end", 0) - child.get("start", 0)) < value:
-                            match = False
+            # Protect against non-iterable/subscriptables
+            if not child:
+                continue
 
-                # Add matched record
-                if match:
-                    object = OBJECT_TYPE()
-                    object.id = child["id"]
-                    object.key = [OBJECT_TYPE.object_name, {"id": object.id}]
-                    object.data = copy.deepcopy(child) # copy of object
-                    object.type = "update"
-                    matching_objects.append(object)
+            # Loop through all kwargs (and look for matches)
+            match = True
+            for key, value in kwargs.items():
+
+                if key in child and child[key] != value:
+                    match = False
+                    break
+
+                # Intersection Position
+                if key == "intersect" and (
+                    child.get("position", 0) > value
+                    or child.get("position", 0) + (child.get("end", 0) - child.get("start", 0)) < value
+                ):
+                    match = False
+
+
+            # Add matched record
+            if match:
+                object = OBJECT_TYPE()
+                object.id = child["id"]
+                object.key = [OBJECT_TYPE.object_name, {"id": object.id}]
+                object.data = copy.deepcopy(child)  # copy of object
+                object.type = "update"
+                matching_objects.append(object)
 
         # Return matching objects
         return matching_objects
@@ -164,8 +168,7 @@ class Clip(QueryObject):
     def title(self):
         """ Get the translated display title of this item """
         path = self.data.get("reader", {}).get("path")
-        folder_path, filename = os.path.split(path)
-        return filename
+        return os.path.basename(path)
 
 class Transition(QueryObject):
     """ This class allows Transitions (i.e. timeline effects) to be queried, updated, and deleted from the project data. """
@@ -191,8 +194,7 @@ class Transition(QueryObject):
     def title(self):
         """ Get the translated display title of this item """
         path = self.data.get("reader", {}).get("path")
-        folder_path, filename = os.path.split(path)
-        fileBaseName, fileExtension = os.path.splitext(filename)
+        fileBaseName = os.path.splitext(os.path.basename(path))[0]
 
         # split the name into parts (looking for a number)
         suffix_number = None
@@ -235,30 +237,25 @@ class File(QueryObject):
     def absolute_path(self):
         """ Get absolute file path of file """
 
-        # Get project folder (if any)
-        project_folder = None
-        if project.current_filepath:
-            project_folder = os.path.dirname(project.current_filepath)
-
-        # Convert relative file path into absolute (if needed)
         file_path = self.data["path"]
-        if not os.path.isabs(file_path) and project_folder:
-            file_path = os.path.abspath(os.path.join(project_folder, self.data["path"]))
+        if os.path.isabs(file_path):
+            return file_path
 
-        # Return absolute path of file
+        # Try to expand path relative to project folder
+        app = get_app()
+        if (app and hasattr("project", app)
+           and hasattr("current_filepath", app.project)):
+            project_folder = os.path.dirname(app.project.current_filepath)
+            file_path = os.path.abspath(os.path.join(project_folder, file_path))
+
         return file_path
 
     def relative_path(self):
         """ Get relative path (based on the current working directory) """
 
-        # Get absolute file path
         file_path = self.absolute_path()
-
         # Convert path to relative (based on current working directory of Python)
-        file_path = os.path.relpath(file_path, info.CWD)
-
-        # Return relative path
-        return file_path
+        return os.path.relpath(file_path, info.CWD)
 
 
 class Marker(QueryObject):
@@ -304,6 +301,12 @@ class Track(QueryObject):
         """ Take any arguments given as filters, and find the first matching object """
         return QueryObject.get(Track, **kwargs)
 
+    def __lt__(self, other):
+        return self.data.get('number', 0) < other.data.get('number', 0)
+
+    def __gt__(self, other):
+        return self.data.get('number', 0) > other.data.get('number', 0)
+
 
 class Effect(QueryObject):
     """ This class allows Effects to be queried, updated, and deleted from the project data. """
@@ -322,7 +325,7 @@ class Effect(QueryObject):
         """ Take any arguments given as filters, and find a list of matching objects """
 
         # Get a list of clips
-        clips = project.get(["clips"])
+        clips = get_app().project.get("clips")
         matching_objects = []
 
         # Loop through all clips
@@ -335,7 +338,7 @@ class Effect(QueryObject):
                         # Loop through all kwargs (and look for matches)
                         match = True
                         for key, value in kwargs.items():
-                            if key in child and not child[key] == value:
+                            if key in child and child[key] != value:
                                 match = False
                                 break
 

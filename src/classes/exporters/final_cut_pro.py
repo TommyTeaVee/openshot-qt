@@ -57,7 +57,7 @@ def createEffect(xmldoc, name, node, points, scale):
             first_value = None
             for keyframeTime in sorted(keyframes.keys()):
                 keyframeValue = keyframes.get(keyframeTime)
-                if first_value == None:
+                if first_value is None:
                     first_value = keyframeValue
 
                 # Create keyframe element for each point
@@ -77,8 +77,8 @@ def export_xml():
     _ = app._tr
 
     # Get FPS info
-    fps_num = get_app().project.get(["fps"]).get("num", 24)
-    fps_den = get_app().project.get(["fps"]).get("den", 1)
+    fps_num = get_app().project.get("fps").get("num", 24)
+    fps_den = get_app().project.get("fps").get("den", 1)
     fps_float = float(fps_num / fps_den)
 
     # Ticks (final cut pro value)
@@ -90,16 +90,18 @@ def export_xml():
         recommended_path = os.path.join(info.HOME_PATH, "%s.xml" % _("Untitled Project"))
     else:
         recommended_path = recommended_path.replace(".osp", ".xml")
-    file_path, file_type = QFileDialog.getSaveFileName(app.window, _("Export XML..."), recommended_path,
-                                                       _("Final Cut Pro (*.xml)"))
-    if file_path:
-        # Append .xml if needed
-        if ".xml" not in file_path:
-            file_path = "%s.xml" % file_path
+    file_path = QFileDialog.getSaveFileName(app.window, _("Export XML..."), recommended_path,
+                                            _("Final Cut Pro (*.xml)"))[0]
+    if not file_path:
+        # User canceled dialog
+        return
 
-    # Get filename with no extension
-    parent_path, file_name_with_ext = os.path.split(file_path)
-    file_name, ext = os.path.splitext(file_name_with_ext)
+    # Append .xml if needed
+    if not file_path.endswith(".xml"):
+        file_path = "%s.xml" % file_path
+
+    # Get filename with no path
+    file_name = os.path.basename(file_path)
 
     # Determine max frame (based on clips)
     duration = 0.0
@@ -110,16 +112,16 @@ def export_xml():
             duration = clip_last_frame
 
     # XML template path
-    xmldoc = minidom.parse(os.path.join(info.PATH, 'resources', 'export-project-template.xml'))
+    xmldoc = minidom.parse(os.path.join(info.RESOURCES_PATH, 'export-project-template.xml'))
 
     # Set Project Details
-    xmldoc.getElementsByTagName("name")[0].childNodes[0].nodeValue = file_name_with_ext
+    xmldoc.getElementsByTagName("name")[0].childNodes[0].nodeValue = file_name
     xmldoc.getElementsByTagName("uuid")[0].childNodes[0].nodeValue = str(uuid1())
     xmldoc.getElementsByTagName("duration")[0].childNodes[0].nodeValue = duration
-    xmldoc.getElementsByTagName("width")[0].childNodes[0].nodeValue = app.project.get(["width"])
-    xmldoc.getElementsByTagName("height")[0].childNodes[0].nodeValue = app.project.get(["height"])
-    xmldoc.getElementsByTagName("samplerate")[0].childNodes[0].nodeValue = app.project.get(["sample_rate"])
-    xmldoc.getElementsByTagName("sequence")[0].setAttribute("id", app.project.get(["id"]))
+    xmldoc.getElementsByTagName("width")[0].childNodes[0].nodeValue = app.project.get("width")
+    xmldoc.getElementsByTagName("height")[0].childNodes[0].nodeValue = app.project.get("height")
+    xmldoc.getElementsByTagName("samplerate")[0].childNodes[0].nodeValue = app.project.get("sample_rate")
+    xmldoc.getElementsByTagName("sequence")[0].setAttribute("id", app.project.get("id"))
     for childNode in xmldoc.getElementsByTagName("timebase"):
         childNode.childNodes[0].nodeValue = fps_float
 
@@ -127,7 +129,7 @@ def export_xml():
     parentAudioNode = xmldoc.getElementsByTagName("audio")[0]
 
     # Loop through tracks
-    all_tracks = get_app().project.get(["layers"])
+    all_tracks = get_app().project.get("layers")
     track_count = 1
     for track in sorted(all_tracks, key=itemgetter('number')):
         existing_track = Track.get(number=track.get("number"))
@@ -136,20 +138,19 @@ def export_xml():
             log.error('No track object found with number: %s' % track.get("number"))
             continue
 
-        # Track name
-        track_name = track.get("label") or "TRACK %s" % track_count
+        # Track details
         track_locked = track.get("lock", False)
         clips_on_track = Clip.filter(layer=track.get("number"))
         if not clips_on_track:
             continue
 
         # Create video track node
-        trackTemplateDoc = minidom.parse(os.path.join(info.PATH, 'resources', 'export-track-video-template.xml'))
+        trackTemplateDoc = minidom.parse(os.path.join(info.RESOURCES_PATH, 'export-track-video-template.xml'))
         videoTrackNode = trackTemplateDoc.getElementsByTagName('track')[0]
         xmldoc.getElementsByTagName("video")[0].appendChild(videoTrackNode)
 
         # Create audio track nodes (1 for each channel)
-        trackTemplateDoc = minidom.parse(os.path.join(info.PATH, 'resources', 'export-track-audio-template.xml'))
+        trackTemplateDoc = minidom.parse(os.path.join(info.RESOURCES_PATH, 'export-track-audio-template.xml'))
         audioTrackNode = trackTemplateDoc.getElementsByTagName('track')[0]
         parentAudioNode.appendChild(audioTrackNode)
         audioTrackNode.getElementsByTagName("outputchannelindex")[0].childNodes[0].nodeValue = track_count
@@ -164,7 +165,7 @@ def export_xml():
             # Create VIDEO clip node
             clipNode = None
             if clip.data.get("reader", {}).get("has_video"):
-                clipTemplateDoc = minidom.parse(os.path.join(info.PATH, 'resources', 'export-clip-video-template.xml'))
+                clipTemplateDoc = minidom.parse(os.path.join(info.RESOURCES_PATH, 'export-clip-video-template.xml'))
                 clipNode = clipTemplateDoc.getElementsByTagName('clipitem')[0]
                 videoTrackNode.appendChild(clipNode)
 
@@ -187,7 +188,7 @@ def export_xml():
 
             # Create AUDIO clip nodes
             if clip.data.get("reader", {}).get("has_audio"):
-                clipTemplateDoc = minidom.parse(os.path.join(info.PATH, 'resources', 'export-clip-audio-template.xml'))
+                clipTemplateDoc = minidom.parse(os.path.join(info.RESOURCES_PATH, 'export-clip-audio-template.xml'))
                 clipAudioNode = clipTemplateDoc.getElementsByTagName('clipitem')[0]
                 audioTrackNode.appendChild(clipAudioNode)
 
@@ -224,8 +225,11 @@ def export_xml():
         track_count += 1
 
     try:
-        file = open(file_path.encode('UTF-8'), "wb")  # wb needed for windows support
+        file = open(os.fsencode(file_path), "wb")  # wb needed for windows support
         file.write(bytes(xmldoc.toxml(), 'UTF-8'))
         file.close()
     except IOError as inst:
-        log.error("Error writing XML export")
+        log.error("Error writing XML export: {}".format(str(inst)))
+    finally:
+        # Free up DOM memory
+        xmldoc.unlink()

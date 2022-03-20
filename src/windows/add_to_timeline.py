@@ -26,27 +26,22 @@
  along with OpenShot Library.  If not, see <http://www.gnu.org/licenses/>.
  """
 
-import os, math
+import os
 from operator import itemgetter
 from random import shuffle, randint, uniform
 
-from PyQt5.QtWidgets import *
+from PyQt5.QtWidgets import QDialog
 from PyQt5.QtGui import QIcon
 
-from classes import settings
 from classes import info, ui_util, time_parts
 from classes.logger import log
-from classes.query import Track, Clip, Transition
+from classes.query import Clip, Transition
 from classes.app import get_app
-from classes.metrics import *
+from classes.metrics import track_metric_screen
 from windows.views.add_to_timeline_treeview import TimelineTreeView
 
 import openshot
-
-try:
-    import json
-except ImportError:
-    import simplejson as json
+import json
 
 
 class AddToTimeline(QDialog):
@@ -54,7 +49,7 @@ class AddToTimeline(QDialog):
 
     ui_path = os.path.join(info.PATH, 'windows', 'ui', 'add-to-timeline.ui')
 
-    def btnMoveUpClicked(self, event):
+    def btnMoveUpClicked(self, checked):
         """Callback for move up button click"""
         log.info("btnMoveUpClicked")
 
@@ -66,7 +61,7 @@ class AddToTimeline(QDialog):
             selected_index = self.treeFiles.selected.row()
 
         # Ignore if empty files
-        if not files or selected_index == None:
+        if not files or selected_index is None:
             return
 
         # New index
@@ -83,7 +78,7 @@ class AddToTimeline(QDialog):
         idx = self.treeFiles.timeline_model.model.index(new_index, 0)
         self.treeFiles.setCurrentIndex(idx)
 
-    def btnMoveDownClicked(self, event):
+    def btnMoveDownClicked(self, checked):
         """Callback for move up button click"""
         log.info("btnMoveDownClicked")
 
@@ -95,7 +90,7 @@ class AddToTimeline(QDialog):
             selected_index = self.treeFiles.selected.row()
 
         # Ignore if empty files
-        if not files or selected_index == None:
+        if not files or selected_index is None:
             return
 
         # New index
@@ -112,17 +107,17 @@ class AddToTimeline(QDialog):
         idx = self.treeFiles.timeline_model.model.index(new_index, 0)
         self.treeFiles.setCurrentIndex(idx)
 
-    def btnShuffleClicked(self, event):
+    def btnShuffleClicked(self, checked):
         """Callback for move up button click"""
         log.info("btnShuffleClicked")
 
         # Shuffle files
-        files = shuffle(self.treeFiles.timeline_model.files)
+        shuffle(self.treeFiles.timeline_model.files)
 
         # Refresh tree
         self.treeFiles.refresh_view()
 
-    def btnRemoveClicked(self, event):
+    def btnRemoveClicked(self, checked):
         """Callback for move up button click"""
         log.info("btnRemoveClicked")
 
@@ -134,7 +129,7 @@ class AddToTimeline(QDialog):
             selected_index = self.treeFiles.selected.row()
 
         # Ignore if empty files
-        if not files or selected_index == None:
+        if not files or selected_index is None:
             return
 
         # Remove item
@@ -175,7 +170,7 @@ class AddToTimeline(QDialog):
             random_transition = True
 
         # Get frames per second
-        fps = get_app().project.get(["fps"])
+        fps = get_app().project.get("fps")
         fps_float = float(fps["num"]) / float(fps["den"])
 
         # Loop through each file (in the current order)
@@ -184,15 +179,8 @@ class AddToTimeline(QDialog):
             clip = Clip()
             clip.data = {}
 
-            if (file.data["media_type"] == "video" or file.data["media_type"] == "image"):
-                # Determine thumb path
-                thumb_path = os.path.join(info.THUMBNAIL_PATH, "%s.png" % file.data["id"])
-            else:
-                # Audio file
-                thumb_path = os.path.join(info.PATH, "images", "AudioThumbnail.png")
-
             # Get file name
-            path, filename = os.path.split(file.data["path"])
+            filename = os.path.basename(file.data["path"])
 
             # Convert path to the correct relative path (based on this folder)
             file_path = file.absolute_path()
@@ -206,7 +194,6 @@ class AddToTimeline(QDialog):
             new_clip["layer"] = track_num
             new_clip["file_id"] = file.id
             new_clip["title"] = filename
-            new_clip["image"] = thumb_path
 
             # Skip any clips that are missing a 'reader' attribute
             # TODO: Determine why this even happens, as it shouldn't be possible
@@ -228,10 +215,10 @@ class AddToTimeline(QDialog):
             start_time = 0
             end_time = new_clip["reader"]["duration"]
 
-            if 'start' in file.data.keys():
+            if 'start' in file.data:
                 start_time = file.data['start']
                 new_clip["start"] = start_time
-            if 'end' in file.data.keys():
+            if 'end' in file.data:
                 end_time = file.data['end']
                 new_clip["end"] = end_time
 
@@ -243,29 +230,44 @@ class AddToTimeline(QDialog):
 
             # Adjust Fade of Clips (if no transition is chosen)
             if not transition_path:
-                if fade_value != None:
+                if fade_value is not None:
                     # Overlap this clip with the previous one (if any)
                     position = max(start_position, new_clip["position"] - fade_length)
                     new_clip["position"] = position
 
-                if fade_value == 'Fade In' or fade_value == 'Fade In & Out':
+                if fade_value in ['Fade In', 'Fade In & Out']:
                     start = openshot.Point(round(start_time * fps_float) + 1, 0.0, openshot.BEZIER)
                     start_object = json.loads(start.Json())
-                    end = openshot.Point(min(round((start_time + fade_length) * fps_float) + 1, round(end_time * fps_float) + 1), 1.0, openshot.BEZIER)
+                    end = openshot.Point(
+                        min(
+                            round((start_time + fade_length) * fps_float) + 1,
+                            round(end_time * fps_float) + 1
+                            ),
+                        1.0,
+                        openshot.BEZIER)
                     end_object = json.loads(end.Json())
                     new_clip['alpha']["Points"].append(start_object)
                     new_clip['alpha']["Points"].append(end_object)
 
-                if fade_value == 'Fade Out' or fade_value == 'Fade In & Out':
-                    start = openshot.Point(max(round((end_time * fps_float) + 1) - (round(fade_length * fps_float) + 1), round(start_time * fps_float) + 1), 1.0, openshot.BEZIER)
+                if fade_value in ['Fade Out', 'Fade In & Out']:
+                    start = openshot.Point(
+                        max(
+                            round((end_time * fps_float) + 1) - (round(fade_length * fps_float) + 1),
+                            round(start_time * fps_float) + 1
+                            ),
+                        1.0,
+                        openshot.BEZIER)
                     start_object = json.loads(start.Json())
-                    end = openshot.Point(round(end_time * fps_float) + 1, 0.0, openshot.BEZIER)
+                    end = openshot.Point(
+                        round(end_time * fps_float) + 1,
+                        0.0,
+                        openshot.BEZIER)
                     end_object = json.loads(end.Json())
                     new_clip['alpha']["Points"].append(start_object)
                     new_clip['alpha']["Points"].append(end_object)
 
             # Adjust zoom amount
-            if zoom_value != None:
+            if zoom_value is not None:
                 # Location animation
                 if zoom_value == "Random":
                     animate_start_x = uniform(-0.5, 0.5)
@@ -335,7 +337,13 @@ class AddToTimeline(QDialog):
 
                 brightness = openshot.Keyframe()
                 brightness.AddPoint(1, 1.0, openshot.BEZIER)
-                brightness.AddPoint(round(min(transition_length, end_time - start_time) * fps_float) + 1, -1.0, openshot.BEZIER)
+                brightness.AddPoint(
+                    round(
+                        min(transition_length, end_time - start_time)
+                        * fps_float
+                        ) + 1,
+                    -1.0,
+                    openshot.BEZIER)
                 contrast = openshot.Keyframe(3.0)
 
                 # Create transition dictionary
@@ -361,14 +369,12 @@ class AddToTimeline(QDialog):
                 tran.data = transitions_data
                 tran.save()
 
-
             # Save Clip
             clip.data = new_clip
             clip.save()
 
             # Increment position by length of clip
             position += (end_time - start_time)
-
 
         # Accept dialog
         super(AddToTimeline, self).accept()
@@ -395,7 +401,7 @@ class AddToTimeline(QDialog):
                 # Don't subtract time from initial clip
                 if not transition_path:
                     # No transitions
-                    if fade_value != None:
+                    if fade_value is not None:
                         # Fade clip - subtract the fade length
                         duration -= fade_length
                 else:
@@ -406,7 +412,7 @@ class AddToTimeline(QDialog):
             total += duration
 
         # Get frames per second
-        fps = get_app().project.get(["fps"])
+        fps = get_app().project.get("fps")
 
         # Update label
         total_parts = time_parts.secondsToTime(total, fps["num"], fps["den"])
@@ -430,12 +436,12 @@ class AddToTimeline(QDialog):
         # Init UI
         ui_util.init_ui(self)
 
-        # Get settings
-        self.settings = settings.get_settings()
-
         # Get translation object
         self.app = get_app()
         _ = self.app._tr
+
+        # Get settings
+        self.settings = self.app.get_settings()
 
         # Track metrics
         track_metric_screen("add-to-timeline-screen")
@@ -462,7 +468,7 @@ class AddToTimeline(QDialog):
         self.txtTransitionLength.valueChanged.connect(self.updateTotal)
 
         # Find display track number
-        all_tracks = get_app().project.get(["layers"])
+        all_tracks = get_app().project.get("layers")
         display_count = len(all_tracks)
         for track in reversed(sorted(all_tracks, key=itemgetter('number'))):
             # Add to dropdown
@@ -493,13 +499,12 @@ class AddToTimeline(QDialog):
         self.cmbTransition.addItem(_('Random'), 'random')
         self.transitions = []
         for group in transition_groups:
-            type = group["type"]
             dir = group["dir"]
             files = group["files"]
 
             for filename in sorted(files):
                 path = os.path.join(dir, filename)
-                (fileBaseName, fileExtension) = os.path.splitext(filename)
+                fileBaseName = os.path.splitext(filename)[0]
 
                 # Skip hidden files (such as .DS_Store, etc...)
                 if filename[0] == "." or "thumbs.db" in filename.lower():

@@ -39,6 +39,13 @@
     "setting": "unique_install_id"
   },
   {
+    "value": "smileys-emotion",
+    "title": "",
+    "type": "hidden",
+    "category": "General",
+    "setting": "emoji_group_filter"
+  },
+  {
     "max": 10000,
     "title": "Image Length (seconds)",
     "category": "General",
@@ -71,32 +78,25 @@
     "setting": "title_editor"
   },
   {
-    "value": "AAAA/wAAAAD9AAAAAwAAAAAAAAEnAAAC3/wCAAAAAvwAAAJeAAAApwAAAAAA////+gAAAAACAAAAAfsAAAAYAGQAbwBjAGsASwBlAHkAZgByAGEAbQBlAAAAAAD/////AAAAAAAAAAD7AAAAHABkAG8AYwBrAFAAcgBvAHAAZQByAHQAaQBlAHMAAAAAJwAAAt8AAACnAP///wAAAAEAAAEcAAABQPwCAAAAAfsAAAAYAGQAbwBjAGsASwBlAHkAZgByAGEAbQBlAQAAAVgAAAAVAAAAAAAAAAAAAAACAAAERgAAAtj8AQAAAAH8AAAAAAAABEYAAAD6AP////wCAAAAAvwAAAAnAAABwAAAALQA/////AEAAAAC/AAAAAAAAAFcAAAAewD////6AAAAAAIAAAAD+wAAABIAZABvAGMAawBGAGkAbABlAHMBAAAAAP////8AAACYAP////sAAAAeAGQAbwBjAGsAVAByAGEAbgBzAGkAdABpAG8AbgBzAQAAAAD/////AAAAmAD////7AAAAFgBkAG8AYwBrAEUAZgBmAGUAYwB0AHMBAAAAAP////8AAACYAP////sAAAASAGQAbwBjAGsAVgBpAGQAZQBvAQAAAWIAAALkAAAARwD////7AAAAGABkAG8AYwBrAFQAaQBtAGUAbABpAG4AZQEAAAHtAAABEgAAAJYA////AAAERgAAAAEAAAABAAAAAgAAAAEAAAAC/AAAAAEAAAACAAAAAQAAAA4AdABvAG8AbABCAGEAcgEAAAAA/////wAAAAAAAAAA",
+    "value": "AAAA/wAAAAD9AAAAAwAAAAAAAAEnAAAC3/wCAAAAA/wAAAJeAAAApwAAAAAA////+gAAAAACAAAAAfsAAAAYAGQAbwBjAGsASwBlAHkAZgByAGEAbQBlAAAAAAD/////AAAAAAAAAAD7AAAAHABkAG8AYwBrAFAAcgBvAHAAZQByAHQAaQBlAHMAAAAAJwAAAt8AAAChAP////sAAAAYAGQAbwBjAGsAVAB1AHQAbwByAGkAYQBsAgAABUQAAAF6AAABYAAAANwAAAABAAABHAAAAUD8AgAAAAH7AAAAGABkAG8AYwBrAEsAZQB5AGYAcgBhAG0AZQEAAAFYAAAAFQAAAAAAAAAAAAAAAgAABEYAAALC/AEAAAAC/AAAAAAAAARGAAAA+gD////8AgAAAAL8AAAAPQAAAa4AAACvAP////wBAAAAAvwAAAAAAAABwQAAAJcA////+gAAAAACAAAABPsAAAASAGQAbwBjAGsARgBpAGwAZQBzAQAAAAD/////AAAAkgD////7AAAAHgBkAG8AYwBrAFQAcgBhAG4AcwBpAHQAaQBvAG4AcwEAAAAA/////wAAAJIA////+wAAABYAZABvAGMAawBFAGYAZgBlAGMAdABzAQAAAAD/////AAAAkgD////7AAAAFABkAG8AYwBrAEUAbQBvAGoAaQBzAQAAAAD/////AAAAkgD////7AAAAEgBkAG8AYwBrAFYAaQBkAGUAbwEAAAHHAAACfwAAAEcA////+wAAABgAZABvAGMAawBUAGkAbQBlAGwAaQBuAGUBAAAB8QAAAQ4AAACWAP////sAAAAiAGQAbwBjAGsAQwBhAHAAdABpAG8AbgBFAGQAaQB0AG8AcgAAAANtAAAA2QAAAFgA////AAAERgAAAAEAAAABAAAAAgAAAAEAAAAC/AAAAAEAAAACAAAAAQAAAA4AdABvAG8AbABCAGEAcgEAAAAA/////wAAAAAAAAAA",
     "title": "",
     "type": "hidden",
     "category": "Qt",
     "setting": "window_state_v2"
   },
   {
-    "value": "AdnQywACAAAAAABWAAAAMwAABJsAAANqAAAAVgAAAE8AAASbAAADagAAAAAAAAAAB4A=",
+    "value": "AdnQywADAAAAAAGbAAAAaAAABeAAAAOoAAABmwAAAI0AAAXgAAADqAAAAAAAAAAACJAAAAGbAAAAjQAABeAAAAOo",
     "title": "",
     "type": "hidden",
     "category": "Qt",
     "setting": "window_geometry_v2"
   },
   {
-    "value": "",
+    "value": false,
     "title": "",
     "type": "hidden",
     "category": "Qt",
-    "setting": "window_splitter_pos"
-  },
-  {
-    "value": "",
-    "title": "",
-    "type": "hidden",
-    "category": "Qt",
-    "setting": "window_splitter_2_pos"
+    "setting": "docks_frozen"
   },
   {
     "value": "thumbnail",
@@ -145,12 +145,12 @@
     "restart": true
   },
   {
-    "max": 128000,
+    "max": 192000,
     "title": "Default Audio Sample Rate",
     "category": "Preview",
     "min": 22050,
     "setting": "default-samplerate",
-    "value": 44100,
+    "value": 48000,
     "values": [
       {
         "value": 22050,
@@ -235,6 +235,15 @@
     "type": "spinner-int"
   },
   {
+    "max": 99,
+    "title": "Recovery Limit (# of project copies)",
+    "category": "Autosave",
+    "min": 0,
+    "setting": "recovery-limit",
+    "value": 30,
+    "type": "spinner-int"
+  },
+  {
     "title": "Cache Mode",
     "category": "Cache",
     "setting": "cache-mode",
@@ -255,7 +264,7 @@
   {
     "min": 0,
     "max": 9999999,
-    "value": 250,
+    "value": 1024,
     "title": "Cache Limit (MB)",
     "type": "spinner-int",
     "category": "Cache",
@@ -318,6 +327,14 @@
     "type": "bool",
     "category": "Debug",
     "setting": "debug-mode",
+    "restart": false
+  },
+  {
+    "value": false,
+    "title": "Show Playback Performance (FPS)",
+    "type": "bool",
+    "category": "Debug",
+    "setting": "preview-fps",
     "restart": false
   },
   {
@@ -399,24 +416,7 @@
     "type": "dropdown",
     "value": "0",
     "translate_values": true,
-    "values": [
-      {
-        "value": "0",
-        "name": "Graphics Card %s (default)"
-      },
-      {
-        "value": "1",
-        "name": "Graphics Card %s (might not be available)"
-      },
-      {
-        "value": "2",
-        "name": "Graphics Card %s (might not be available)"
-      },
-      {
-        "value": "3",
-        "name": "Graphics Card %s (might not be available)"
-      }
-    ],
+    "values": [],
     "restart": true
   },
   {
@@ -427,33 +427,8 @@
     "setting": "graca_number_en",
     "type": "dropdown",
     "value": "0",
-    "values": [
-      {
-        "value": "0",
-        "name": "Graphics Card %s (default)"
-      },
-      {
-        "value": "1",
-        "name": "Graphics Card %s (might not be available)"
-      },
-      {
-        "value": "2",
-        "name": "Graphics Card %s (might not be available)"
-      },
-      {
-        "value": "3",
-        "name": "Graphics Card %s (might not be available)"
-      }
-    ],
+    "values": [],
     "restart": true
-  },
-  {
-    "value": true,
-    "title": "Process Video Frames in Parallel (Experimental)",
-    "type": "bool",
-    "restart": false,
-    "category": "Performance",
-    "setting": "omp_threads_enabled"
   },
   {
     "min": 0,
@@ -496,6 +471,14 @@
     "setting": "decode_hw_max_height"
   },
   {
+    "value": false,
+    "title": "Use Blender GPU rendering for Animated Titles (Experimental)",
+    "type": "bool",
+    "restart": false,
+    "category": "Performance",
+    "setting": "blender_gpu_enabled"
+  },
+  {
     "value": true,
     "title": "",
     "type": "hidden",
@@ -509,7 +492,6 @@
     "category": "Tutorial",
     "setting": "tutorial_ids"
   },
-
   {
     "category": "Keyboard",
     "title": "Preferences",
@@ -545,6 +527,14 @@
   },
   {
     "category": "Keyboard",
+    "title": "Toggle Razor",
+    "restart": true,
+    "setting": "actionRazorTool",
+    "value": "R",
+    "type": "text"
+  },
+  {
+    "category": "Keyboard",
     "title": "Previous Marker",
     "restart": true,
     "setting": "actionPreviousMarker",
@@ -557,6 +547,14 @@
     "restart": true,
     "setting": "actionNextMarker",
     "value": "Ctrl+Right",
+    "type": "text"
+  },
+  {
+    "category": "Keyboard",
+    "title": "Center on Playhead",
+    "restart": true,
+    "setting": "actionCenterOnPlayhead",
+    "value": "Ctrl+Up",
     "type": "text"
   },
   {
@@ -617,7 +615,7 @@
   },
   {
     "category": "Keyboard",
-    "title": "New Project...",
+    "title": "New Project",
     "restart": true,
     "setting": "actionNew",
     "value": "Ctrl+N",
@@ -813,6 +811,30 @@
   },
   {
     "category": "Keyboard",
+    "title": "Slice Selected: Keep Both Sides",
+    "restart": true,
+    "setting": "sliceSelectedKeepBothSides",
+    "value": "s",
+    "type": "text"
+  },
+  {
+    "category": "Keyboard",
+    "title": "Slice Selected: Keep Left Side",
+    "restart": true,
+    "setting": "sliceSelectedKeepLeftSide",
+    "value": "d",
+    "type": "text"
+  },
+  {
+    "category": "Keyboard",
+    "title": "Slice Selected: Keep Right Side",
+    "restart": true,
+    "setting": "sliceSelectedKeepRightSide",
+    "value": "a",
+    "type": "text"
+  },
+  {
+    "category": "Keyboard",
     "title": "Copy",
     "restart": true,
     "setting": "copyAll",
@@ -921,6 +943,29 @@
     "restart": true,
     "setting": "nudgeRight",
     "value": "Shift+Right",
+    "type": "text"
+  },
+  {
+    "value": true,
+    "title": "Auto-Transform Selection",
+    "type": "bool",
+    "category": "General",
+    "setting": "auto-transform"
+  },
+  {
+    "category": "Keyboard",
+    "title": "Edit Title",
+    "restart": true,
+    "setting": "actionEditTitle",
+    "value": "",
+    "type": "text"
+  },
+  {
+    "category": "Keyboard",
+    "title": "Duplicate Title",
+    "restart": true,
+    "setting": "actionDuplicateTitle",
+    "value": "Ctrl+Shift+C",
     "type": "text"
   }
 ]

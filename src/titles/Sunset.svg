@@ -213,11 +213,6 @@
          stdDeviation="1.000000"
          in="SourceAlpha"
          id="feGaussianBlur3986" />
-      <feColorMatrix
-         values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1.000000 0 "
-         type="matrix"
-         result="bluralpha"
-         id="feColorMatrix3988" />
       <feOffset
          result="offsetBlur"
          dy="4.000000"
@@ -246,11 +241,6 @@
          stdDeviation="1.000000"
          in="SourceAlpha"
          id="feGaussianBlur4000" />
-      <feColorMatrix
-         values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1.000000 0 "
-         type="matrix"
-         result="bluralpha"
-         id="feColorMatrix4002" />
       <feOffset
          result="offsetBlur"
          dy="4.000000"
@@ -308,7 +298,7 @@
        x="-0.0019328"
        y="-0.0051269531"
        id="rect3160"
-       style="opacity:0;fill:#e0e7ff;fill-opacity:1;stroke:none" />
+       style="opacity:0;fill:#000;fill-opacity:1;stroke:none" />
     <text
        x="961.7674"
        y="570.69897"

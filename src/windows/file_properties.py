@@ -26,23 +26,19 @@
  """
 
 import os
-import locale
-import xml.dom.minidom as xml
-import functools
+import json
 
-from PyQt5.QtCore import *
-from PyQt5.QtWidgets import *
-import openshot  # Python module for libopenshot (required video editing module installed separately)
+from PyQt5.QtWidgets import (
+    QDialog, QFileDialog, QDialogButtonBox, QPushButton,
+    )
 
-from classes import info, ui_util, settings
+# Python module for libopenshot (required video editing module installed separately)
+import openshot
+
+from classes import info, ui_util
 from classes.app import get_app
 from classes.logger import log
-from classes.metrics import *
-
-try:
-    import json
-except ImportError:
-    import simplejson as json
+from classes.metrics import track_metric_screen
 
 
 class FileProperties(QDialog):
@@ -68,7 +64,7 @@ class FileProperties(QDialog):
         _ = app._tr
 
         # Get settings
-        self.s = settings.get_settings()
+        self.s = app.get_settings()
 
         # Track metrics
         track_metric_screen("file-properties-screen")
@@ -79,24 +75,20 @@ class FileProperties(QDialog):
         self.buttonBox.addButton(QPushButton(_('Cancel')), QDialogButtonBox.RejectRole)
 
         # Dynamically load tabs from settings data
-        self.settings_data = settings.get_settings().get_all_settings()
+        self.settings_data = self.s.get_all_settings()
 
         # Get file properties
-        path, filename = os.path.split(self.file.data["path"])
-        baseFilename, ext = os.path.splitext(filename)
+        filename = os.path.basename(self.file.data["path"])
+        file_extension = os.path.splitext(filename)[1]
         fps_float = float(self.file.data["fps"]["num"]) / float(self.file.data["fps"]["den"])
 
-        tags = ""
-        if "tags" in self.file.data.keys():
-            tags = self.file.data["tags"]
-        name = filename
-        if "name" in self.file.data.keys():
-            name = self.file.data["name"]
+        tags = self.file.data.get("tags", "")
+        name = self.file.data.get("name", filename)
 
         # Populate fields
         self.txtFileName.setText(name)
         self.txtTags.setText(tags)
-        self.txtFilePath.setText(os.path.join(path, filename))
+        self.txtFilePath.setText(self.file.data["path"])
         self.btnBrowse.clicked.connect(self.browsePath)
 
         # Populate video fields
@@ -127,7 +119,7 @@ class FileProperties(QDialog):
             self.txtEndFrame.setValue(round(float(file.data["end"]) * fps_float) + 1)
 
         # Populate video & audio format
-        self.txtVideoFormat.setText(ext.replace(".", ""))
+        self.txtVideoFormat.setText(file_extension.replace(".", ""))
         self.txtVideoCodec.setText(self.file.data["vcodec"])
         self.txtAudioCodec.setText(self.file.data["acodec"])
         self.txtSampleRate.setValue(int(self.file.data["sample_rate"]))
@@ -136,27 +128,26 @@ class FileProperties(QDialog):
         self.txtAudioBitRate.setValue(int(self.file.data["audio_bit_rate"]))
 
         # Populate output field
-        self.txtOutput.setText(json.dumps(file.data, sort_keys=True, indent=4, separators=(',', ': ')))
+        self.txtOutput.setText(json.dumps(file.data, sort_keys=True, indent=2))
 
         # Add channel layouts
-        channel_layout_index = 0
         selected_channel_layout_index = 0
         current_channel_layout = 0
         if self.file.data["has_audio"]:
             current_channel_layout = int(self.file.data["channel_layout"])
         self.channel_layout_choices = []
-        for layout in [(0, _("Unknown")),
-                       (openshot.LAYOUT_MONO, _("Mono (1 Channel)")),
-                       (openshot.LAYOUT_STEREO, _("Stereo (2 Channel)")),
-                       (openshot.LAYOUT_SURROUND, _("Surround (3 Channel)")),
-                       (openshot.LAYOUT_5POINT1, _("Surround (5.1 Channel)")),
-                       (openshot.LAYOUT_7POINT1, _("Surround (7.1 Channel)"))]:
+        layouts = [(0, _("Unknown")),
+                   (openshot.LAYOUT_MONO, _("Mono (1 Channel)")),
+                   (openshot.LAYOUT_STEREO, _("Stereo (2 Channel)")),
+                   (openshot.LAYOUT_SURROUND, _("Surround (3 Channel)")),
+                   (openshot.LAYOUT_5POINT1, _("Surround (5.1 Channel)")),
+                   (openshot.LAYOUT_7POINT1, _("Surround (7.1 Channel)"))]
+        for channel_layout_index, layout in enumerate(layouts):
             log.info(layout)
             self.channel_layout_choices.append(layout[0])
             self.cboChannelLayout.addItem(layout[1], layout[0])
             if current_channel_layout == layout[0]:
                 selected_channel_layout_index = channel_layout_index
-            channel_layout_index += 1
 
         # Select matching channel layout
         self.cboChannelLayout.setCurrentIndex(selected_channel_layout_index)
@@ -179,15 +170,15 @@ class FileProperties(QDialog):
         _ = app._tr
 
         starting_folder, filename = os.path.split(self.file.data["path"])
-        newFilePath = QFileDialog.getOpenFileName(None,(_("Locate media file: %s") % filename), starting_folder)
-        self.txtFilePath.setText(newFilePath[0])
+        newFilePath = QFileDialog.getOpenFileName(None, _("Locate media file: %s") % filename, starting_folder)[0]
+        self.txtFilePath.setText(newFilePath)
 
     def accept(self):
         # Update file details
         self.file.data["name"] = self.txtFileName.text()
         self.file.data["tags"] = self.txtTags.text()
 
-        #experimental: update file path
+        # experimental: update file path
         self.file.data["path"] = self.txtFilePath.text()
 
         # Update Framerate

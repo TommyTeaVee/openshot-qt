@@ -30,65 +30,75 @@ import encodings.idna
 import requests
 import platform
 import threading
+import time
 import urllib.parse
 from copy import deepcopy
+
 from classes import info
 from classes import language
+from classes.app import get_app
 from classes.logger import log
-from classes import settings
+
 import openshot
 
-from PyQt5.QtCore import QT_VERSION_STR
-from PyQt5.Qt import PYQT_VERSION_STR
+from PyQt5.QtCore import QT_VERSION_STR, PYQT_VERSION_STR
 
-
-# Get libopenshot version
-libopenshot_version = openshot.GetVersion()
+try:
+    import distro
+except ModuleNotFoundError:
+    distro = None
 
 # Get settings
-s = settings.get_settings()
+s = get_app().get_settings()
 
 # Determine OS version
 os_version = "X11; Linux %s" % platform.machine()
-linux_distro = "None"
+os_distro = "None"
 try:
     if platform.system() == "Darwin":
         v = platform.mac_ver()
         os_version = "Macintosh; Intel Mac OS X %s" % v[0].replace(".", "_")
-        linux_distro = "OS X %s" % v[0]
+        os_distro = "OS X %s" % v[0]
 
     elif platform.system() == "Windows":
         v = platform.win32_ver()
-        # TODO: Upgrade windows python (on build server) version to 3.5, so it correctly identifies Windows 10
         os_version = "Windows NT %s; %s" % (v[0], v[1])
-        linux_distro = "Windows %s" % "-".join(platform.win32_ver())
+        os_distro = "Windows %s" % "-".join(v)
 
     elif platform.system() == "Linux":
         # Get the distro name and version (if any)
-        linux_distro = "-".join(platform.linux_distribution())
+        if distro:
+            os_distro = "-".join(distro.linux_distribution()[0:2])
+        else:
+            os_distro = "Linux"
 
-except Exception as Ex:
-    log.error("Error determining OS version in metrics.py")
+except Exception:
+    log.debug("Error determining OS version", exc_info=1)
 
 # Build user-agent
 user_agent = "Mozilla/5.0 (%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.120 Safari/537.36" % os_version
 
 params = {
-    "cid" : s.get("unique_install_id"),     # Unique install ID
-    "v" : 1,                                # Google Measurement API version
-    "tid" : "UA-4381101-5",                 # Google Analytic Tracking ID
-    "an" : info.PRODUCT_NAME,               # App Name
-    "aip" : 1,                              # Anonymize IP
-    "aid" : "org.openshot.%s" % info.NAME,  # App ID
-    "av" : info.VERSION,                    # App Version
-    "ul" : language.get_current_locale().replace('_','-').lower(),   # Current Locale
-    "ua" : user_agent,                      # Custom User Agent (for OS, Processor, and OS version)
-    "cd1" : libopenshot_version.ToString(), # Dimension 1: libopenshot version
-    "cd2" : platform.python_version(),      # Dimension 2: python version (i.e. 3.4.3)
-    "cd3" : QT_VERSION_STR,                 # Dimension 3: qt5 version (i.e. 5.2.1)
-    "cd4" : PYQT_VERSION_STR,               # Dimension 4: pyqt5 version (i.e. 5.2.1)
-    "cd5" : linux_distro
+    "cid": s.get("unique_install_id"),      # Unique install ID
+    "v": 1,                                 # Google Measurement API version
+    "tid": "UA-4381101-5",                  # Google Analytic Tracking ID
+    "an": info.PRODUCT_NAME,                # App Name
+    "aip": 1,                               # Anonymize IP
+    "aid": "org.openshot.%s" % info.NAME,   # App ID
+    "av": info.VERSION,                     # App Version
+    "ul": language.get_current_locale().replace('_', '-').lower(),   # Current Locale
+    "ua": user_agent,                       # Custom User Agent (for OS, Processor, and OS version)
+    "cd1": openshot.OPENSHOT_VERSION_FULL,  # Dimension 1: libopenshot version
+    "cd2": platform.python_version(),       # Dimension 2: python version (i.e. 3.4.3)
+    "cd3": QT_VERSION_STR,                  # Dimension 3: qt5 version (i.e. 5.2.1)
+    "cd4": PYQT_VERSION_STR,                # Dimension 4: pyqt5 version (i.e. 5.2.1)
+    "cd5": os_distro
 }
+
+# Queue for metrics (incase things are disabled... just queue it up
+# incase the user enables metrics later
+metric_queue = []
+
 
 def track_metric_screen(screen_name):
     """Track a GUI screen being shown"""
@@ -98,7 +108,9 @@ def track_metric_screen(screen_name):
     metric_params["cid"] = s.get("unique_install_id")
 
     t = threading.Thread(target=send_metric, args=[metric_params])
+    t.daemon = True
     t.start()
+
 
 def track_metric_event(event_action, event_label, event_category="General", event_value=0):
     """Track a GUI screen being shown"""
@@ -111,7 +123,9 @@ def track_metric_event(event_action, event_label, event_category="General", even
     metric_params["cid"] = s.get("unique_install_id")
 
     t = threading.Thread(target=send_metric, args=[metric_params])
+    t.daemon = True
     t.start()
+
 
 def track_metric_error(error_name, is_fatal=False):
     """Track an error has occurred"""
@@ -123,12 +137,9 @@ def track_metric_error(error_name, is_fatal=False):
         metric_params["exf"] = 1
 
     t = threading.Thread(target=send_metric, args=[metric_params])
+    t.daemon = True
     t.start()
 
-def track_exception_stacktrace(stacktrace, source):
-    """Track an exception/stacktrace has occurred"""
-    t = threading.Thread(target=send_exception, args=[stacktrace, source])
-    t.start()
 
 def track_metric_session(is_start=True):
     """Track a GUI screen being shown"""
@@ -142,40 +153,32 @@ def track_metric_session(is_start=True):
         metric_params["cd"] = "close-app"
 
     t = threading.Thread(target=send_metric, args=[metric_params])
+    t.daemon = True
     t.start()
+
 
 def send_metric(params):
     """Send anonymous metric over HTTP for tracking"""
+
+    # Add to queue and *maybe* send if the user allows it
+    metric_queue.append(params)
+
     # Check if the user wants to send metrics and errors
     if s.get("send_metrics"):
 
-        url_params = urllib.parse.urlencode(params)
-        url = "http://www.google-analytics.com/collect?%s" % url_params
+        for metric_params in metric_queue:
+            url_params = urllib.parse.urlencode(metric_params)
+            url = "https://www.google-analytics.com/collect?%s" % url_params
 
-        # Send metric HTTP data
-        try:
-            r = requests.get(url, headers={"user-agent": user_agent}, verify=False)
-            log.info("Track metric: [%s] %s | (%s bytes)" % (r.status_code, r.url, len(r.content)))
+            # Send metric HTTP data
+            try:
+                r = requests.get(url, headers={"user-agent": user_agent})
+            except Exception:
+                log.warning("Failed to track metric", exc_info=1)
 
-        except Exception as Ex:
-            log.error("Failed to Track metric: %s" % (Ex))
+            # Wait a moment, so we don't spam the requests
+            time.sleep(0.25)
 
-def send_exception(stacktrace, source):
-    """Send exception stacktrace over HTTP for tracking"""
-    # Check if the user wants to send metrics and errors
-    if s.get("send_metrics"):
-
-        data = urllib.parse.urlencode({ "stacktrace": stacktrace,
-                                        "platform": platform.system(),
-                                        "version": info.VERSION,
-                                        "source": source,
-                                        "unique_install_id": s.get("unique_install_id" )})
-        url = "http://www.openshot.org/exception/json/"
-
-        # Send exception HTTP data
-        try:
-            r = requests.post(url, data=data, headers={"user-agent": user_agent, "content-type": "application/x-www-form-urlencoded"}, verify=False)
-            log.info("Track exception: [%s] %s | %s" % (r.status_code, r.url, r.text))
-
-        except Exception as Ex:
-            log.error("Failed to Track exception: %s" % (Ex))
+        # All metrics have been sent (or attempted to send)
+        # Clear the queue
+        metric_queue.clear()

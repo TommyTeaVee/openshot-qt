@@ -1,50 +1,43 @@
-""" 
+"""
  @file
  @brief This file loads the clip cutting interface (quickly cut up a clip into smaller clips)
   @author Jonathan Thomas <jonathan@openshot.org>
- 
+
  @section LICENSE
- 
+
  Copyright (c) 2008-2018 OpenShot Studios, LLC
  (http://www.openshotstudios.com). This file is part of
  OpenShot Video Editor (http://www.openshot.org), an open-source project
  dedicated to delivering high quality video editing and animation solutions
  to the world.
- 
+
  OpenShot Video Editor is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
- 
+
  OpenShot Video Editor is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU General Public License
  along with OpenShot Library.  If not, see <http://www.gnu.org/licenses/>.
  """
 
 import os
-import sys
 import functools
-import math
 
-from PyQt5.QtCore import *
-from PyQt5.QtWidgets import *
+from PyQt5.QtCore import pyqtSignal, QTimer
+from PyQt5.QtWidgets import QDialog, QMessageBox, QSizePolicy
 import openshot  # Python module for libopenshot (required video editing module installed separately)
 
-from classes import info, ui_util, time_parts, settings, qt_types, updates
+from classes import info, ui_util, time_parts
 from classes.app import get_app
 from classes.logger import log
-from classes.metrics import *
+from classes.metrics import track_metric_screen
 from windows.preview_thread import PreviewParent
 from windows.video_widget import VideoWidget
-
-try:
-    import json
-except ImportError:
-    import simplejson as json
 
 
 class Cutting(QDialog):
@@ -114,7 +107,13 @@ class Cutting(QDialog):
         viewport_rect = self.videoPreview.centeredViewport(self.videoPreview.width(), self.videoPreview.height())
 
         # Create an instance of a libopenshot Timeline object
-        self.r = openshot.Timeline(self.videoPreview.width(), self.videoPreview.height(), openshot.Fraction(self.fps_num, self.fps_den), self.sample_rate, self.channels, self.channel_layout)
+        self.r = openshot.Timeline(
+            self.videoPreview.width(),
+            self.videoPreview.height(),
+            openshot.Fraction(self.fps_num, self.fps_den),
+            self.sample_rate,
+            self.channels,
+            self.channel_layout)
         self.r.info.channel_layout = self.channel_layout
         self.r.SetMaxSize(viewport_rect.width(), viewport_rect.height())
 
@@ -129,13 +128,18 @@ class Cutting(QDialog):
             # Set has_audio property
             self.r.info.has_audio = self.clip.Reader().info.has_audio
 
+            # Update video_length property of the Timeline object
+            self.r.info.video_length = self.video_length
+
             if preview:
                 # Display frame #'s during preview
                 self.clip.display = openshot.FRAME_DISPLAY_CLIP
 
             self.r.AddClip(self.clip)
-        except:
-            log.error('Failed to load media file into preview player: %s' % self.file_path)
+        except Exception:
+            log.error(
+                'Failed to load media file into preview player: %s',
+                self.file_path)
             return
 
         # Open reader
@@ -158,7 +162,7 @@ class Cutting(QDialog):
 
         # Determine if a start or end attribute is in this file
         start_frame = 1
-        if 'start' in self.file.data.keys():
+        if 'start' in self.file.data:
             start_frame = (float(self.file.data['start']) * self.fps) + 1
 
         # Display start frame (and then the previous frame)
@@ -250,7 +254,7 @@ class Cutting(QDialog):
 
         # Save thumbnail image
         self.start_image = os.path.join(info.USER_PATH, 'thumbnail', '%s.png' % self.start_frame)
-        self.r.GetFrame(self.start_frame).Thumbnail(self.start_image, 160, 90, '', '', '#000000', True)
+        self.r.GetFrame(self.start_frame).Thumbnail(self.start_image, 160, 90, '', '', '#000000', True, 'png', 85)
 
         # Set CSS on button
         self.btnStart.setStyleSheet('background-image: url(%s);' % self.start_image.replace('\\', '/'))
@@ -287,7 +291,7 @@ class Cutting(QDialog):
 
         # Save thumbnail image
         self.end_image = os.path.join(info.USER_PATH, 'thumbnail', '%s.png' % self.end_frame)
-        self.r.GetFrame(self.end_frame).Thumbnail(self.end_image, 160, 90, '', '', '#000000', True)
+        self.r.GetFrame(self.end_frame).Thumbnail(self.end_image, 160, 90, '', '', '#000000', True, 'png', 85)
 
         # Set CSS on button
         self.btnEnd.setStyleSheet('background-image: url(%s);' % self.end_image.replace('\\', '/'))
@@ -330,7 +334,7 @@ class Cutting(QDialog):
         log.info('btnAddClip_clicked')
 
         # Remove unneeded attributes
-        if 'name' in self.file.data.keys():
+        if 'name' in self.file.data:
             self.file.data.pop('name')
 
         # Save new file
@@ -356,7 +360,7 @@ class Cutting(QDialog):
         log.info('close')
 
     def closeEvent(self, event):
-        log.info('closeEvent')
+        log.debug('closeEvent')
 
         # Stop playback
         self.preview_parent.worker.Stop()
@@ -373,6 +377,3 @@ class Cutting(QDialog):
 
     def reject(self):
         log.info('reject')
-
-
-
